@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>منصتي الإبداعية المتقدمة</title>
+    <style>
+        :root { --accent: #00adb5; --bg: #0f0f0f; }
+        body { background-color: var(--bg); color: #fff; font-family: 'Cairo', sans-serif; margin: 0; padding: 20px; }
+        
+        #login-screen { text-align: center; padding: 100px 20px; }
+        #main-gallery { display: none; animation: slideIn 0.8s; }
+
+        /* الأزرار العلوية */
+        .controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
+        .filter-btn { background: #222; border: 1px solid #444; color: white; padding: 10px 20px; cursor: pointer; border-radius: 25px; transition: 0.4s; }
+        .filter-btn.active, .filter-btn:hover { background: var(--accent); border-color: var(--accent); transform: translateY(-3px); }
+        
+        /* تأثيرات الصور */
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 25px; }
+        .photo-card { 
+            background: #1a1a1a; border-radius: 20px; overflow: hidden; border: 1px solid #333; 
+            transition: 0.4s ease-in-out; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .photo-card:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(0,173,181,0.3); border-color: var(--accent); }
+        .photo-card img { width: 100%; height: 220px; object-fit: cover; }
+        
+        /* زر الحذف الفني */
+        .del-btn { position: absolute; top: 10px; right: 10px; background: rgba(255, 71, 87, 0.8); border: none; color: white; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none; }
+        .photo-card:hover .del-btn { display: block; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <h2>أهلاً بك في معرضك الإبداعي</h2>
+    <input type="text" id="username" placeholder="اكتب اسمك..." style="padding:12px; border-radius:10px; border:none;">
+    <button onclick="login()" style="padding:12px 25px; background:var(--accent); border:none; color:white; border-radius:10px; cursor:pointer;">دخول</button>
+</div>
+
+<div id="main-gallery">
+    <!-- زر تسجيل الخروج -->
+    <div style="text-align: left; padding: 10px;">
+        <button onclick="logout()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">خروج</button>
+    </div>
+    
+    <h2 id="welcome-msg" style="text-align:center;"></h2>
+    <div class="controls">
+        <button class="filter-btn active" onclick="render('الكل', this)">الكل</button>
+        <button class="filter-btn" onclick="render('أنمي', this)">أنمي</button>
+        <button class="filter-btn" onclick="render('مناظر', this)">مناظر</button>
+        <button class="filter-btn" onclick="render('شعارات', this)">شعارات</button>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        <select id="catSelect" style="padding: 10px; border-radius: 5px;">
+            <option value="أنمي">أنمي</option>
+            <option value="مناظر">مناظر</option>
+            <option value="شعارات">شعارات</option>
+        </select>
+        <input type="file" id="upload" accept="image/*">
+    </div>
+
+    <div class="gallery-grid" id="gallery"></div>
+</div>
+
+<script>
+    let images = JSON.parse(localStorage.getItem('myGallery')) || [];
+
+    function login() {
+        const name = document.getElementById('username').value;
+        if(name) { localStorage.setItem('userName', name); location.reload(); }
+    }
+
+    // دالة تسجيل الخروج
+    function logout() {
+        localStorage.removeItem('userName');
+        location.reload();
+    }
+
+    if(localStorage.getItem('userName')) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-gallery').style.display = 'block';
+        document.getElementById('welcome-msg').innerText = "مرحباً بك، " + localStorage.getItem('userName');
+        render();
+    }
+
+    function render(filter = 'الكل', btn = null) {
+        if(btn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        const gallery = document.getElementById('gallery');
+        gallery.innerHTML = "";
+        const filtered = (filter === 'الكل') ? images : images.filter(img => img.cat === filter);
+
+        filtered.forEach((item) => {
+            gallery.innerHTML += `
+                <div class="photo-card">
+                    <button class="del-btn" onclick="deleteImage(${item.id})">×</button>
+                    <img src="${item.src}">
+                    <div style="padding:15px; text-align:center;">
+                        <button onclick="this.style.color='red'; this.innerHTML='❤️'" style="background:none; border:none; cursor:pointer;">🤍</button>
+                        <a href="${item.src}" download style="text-decoration:none; margin-right:15px;">📥</a>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function deleteImage(id) {
+        if(confirm("حذف الصورة؟")) {
+            images = images.filter(img => img.id !== id);
+            localStorage.setItem('myGallery', JSON.stringify(images));
+            render();
+        }
+    }
+
+    document.getElementById('upload').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            images.push({ id: Date.now(), src: event.target.result, cat: document.getElementById('catSelect').value });
+            localStorage.setItem('myGallery', JSON.stringify(images));
+            render();
+        }
+        reader.readAsDataURL(e.target.files[0]);
+    });
+</script>
+</body>
+</html>
